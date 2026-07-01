@@ -1,0 +1,105 @@
+// Prisma schema — SolarDV Backend
+// Đây là khung model ban đầu, sẽ tinh chỉnh khi triển khai thực tế.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  STAFF
+}
+
+enum ConsultationStatus {
+  NEW
+  CONTACTED
+  DONE
+  CANCELLED
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  fullName  String
+  role      Role     @default(STAFF)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Service {
+  id          String   @id @default(uuid())
+  title       String
+  slug        String   @unique
+  summary     String?
+  content     String?
+  thumbnail   String?
+  isPublished Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  description String?
+  images      String[]
+  category    String?
+  isPublished Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Project {
+  id          String   @id @default(uuid())
+  title       String
+  slug        String   @unique
+  location    String?
+  description String?
+  images      String[]
+  completedAt DateTime?
+  isPublished Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Post {
+  id          String   @id @default(uuid())
+  title       String
+  slug        String   @unique
+  excerpt     String?
+  content     String?
+  thumbnail   String?
+  isPublished Boolean  @default(true)
+  publishedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Consultation {
+  id        String             @id @default(uuid())
+  fullName  String
+  phone     String
+  email     String?
+  address   String?
+  message   String?
+  status    ConsultationStatus @default(NEW)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+}
+
+// Lưu lượt truy cập đã tổng hợp theo ngày (Redis buffer realtime sẽ đồng bộ xuống đây)
+model VisitStat {
+  id        String   @id @default(uuid())
+  date      DateTime @unique @db.Date
+  pageViews Int      @default(0)
+  visitors  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
