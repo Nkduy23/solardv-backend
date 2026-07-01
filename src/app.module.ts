@@ -1,6 +1,13 @@
-import { Module } from '@nestjs/common';
+import {
+  MiddlewareConsumer,
+  Module,
+  NestModule,
+  RequestMethod,
+} from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 import configuration from './config/configuration';
 import { validationSchema } from './config/validation.schema';
 import { PrismaModule } from './database/prisma.module';
@@ -10,6 +17,7 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
+import { AnalyticsTrackerMiddleware } from './common/middleware/analytics-tracker.middleware';
 import { AppController } from './app.controller';
 import { AuthModule } from './modules/auth/auth.module';
 import { ServicesModule } from './modules/services/services.module';
@@ -17,6 +25,8 @@ import { ProductsModule } from './modules/products/products.module';
 import { ProjectsModule } from './modules/projects/projects.module';
 import { PostsModule } from './modules/posts/posts.module';
 import { ConsultationsModule } from './modules/consultations/consultations.module';
+import { MediaModule } from './modules/media/media.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
 
 @Module({
   imports: [
@@ -24,6 +34,12 @@ import { ConsultationsModule } from './modules/consultations/consultations.modul
       isGlobal: true,
       load: [configuration],
       validationSchema,
+    }),
+    // Serve file ảnh upload tĩnh tại /uploads/*
+    ServeStaticModule.forRoot({
+      rootPath: join(process.cwd(), 'uploads'),
+      serveRoot: '/uploads',
+      serveStaticOptions: { index: false },
     }),
     PrismaModule,
     RedisModule,
@@ -33,7 +49,8 @@ import { ConsultationsModule } from './modules/consultations/consultations.modul
     ProjectsModule,
     PostsModule,
     ConsultationsModule,
-    // TODO: MediaModule, AnalyticsModule
+    MediaModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [
@@ -44,4 +61,11 @@ import { ConsultationsModule } from './modules/consultations/consultations.modul
     { provide: APP_GUARD, useClass: RolesGuard },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    // Gắn middleware đếm lượt truy cập cho tất cả route GET public (client website)
+    consumer
+      .apply(AnalyticsTrackerMiddleware)
+      .forRoutes({ path: 'api/v1/*', method: RequestMethod.GET });
+  }
+}
