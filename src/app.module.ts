@@ -12,6 +12,11 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 import { AppController } from './app.controller';
 import { AuthModule } from './modules/auth/auth.module';
+import { ServicesModule } from './modules/services/services.module';
+import { ProductsModule } from './modules/products/products.module';
+import { ProjectsModule } from './modules/projects/projects.module';
+import { PostsModule } from './modules/posts/posts.module';
+import { ConsultationsModule } from './modules/consultations/consultations.module';
 
 @Module({
   imports: [
@@ -23,14 +28,19 @@ import { AuthModule } from './modules/auth/auth.module';
     PrismaModule,
     RedisModule,
     AuthModule,
-    // TODO: UsersModule, ServicesModule, ProductsModule, ProjectsModule, PostsModule, ConsultationsModule, MediaModule, AnalyticsModule
+    ServicesModule,
+    ProductsModule,
+    ProjectsModule,
+    PostsModule,
+    ConsultationsModule,
+    // TODO: MediaModule, AnalyticsModule
   ],
   controllers: [AppController],
   providers: [
     { provide: APP_FILTER, useClass: HttpExceptionFilter },
     { provide: APP_INTERCEPTOR, useClass: LoggingInterceptor },
     { provide: APP_INTERCEPTOR, useClass: TransformInterceptor },
-    { provide: APP_GUARD, useClass: JwtAuthGuard }, // ← auth global, bỏ qua nếu @Public()
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
   ],
 })
