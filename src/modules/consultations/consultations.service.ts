@@ -21,8 +21,8 @@ export class ConsultationsService {
     const [data, total] = await Promise.all([
       this.prisma.consultation.findMany({
         where,
-        skip: (page - 1) * limit,
-        take: limit,
+        skip: (Number(page) - 1) * Number(limit),
+        take: Number(limit),
         orderBy: { createdAt: 'desc' },
       }),
       this.prisma.consultation.count({ where }),

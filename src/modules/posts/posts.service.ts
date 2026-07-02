@@ -17,8 +17,8 @@ export class PostsService {
     const [data, total] = await Promise.all([
       this.prisma.post.findMany({
         where,
-        skip: (page - 1) * limit,
-        take: limit,
+        skip: (Number(page) - 1) * Number(limit),
+        take: Number(limit),
         orderBy: { publishedAt: 'desc' },
       }),
       this.prisma.post.count({ where }),
