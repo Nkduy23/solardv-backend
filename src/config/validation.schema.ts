@@ -13,4 +13,7 @@ export const validationSchema = Joi.object({
   JWT_REFRESH_SECRET: Joi.string().required(),
   JWT_REFRESH_EXPIRES_IN: Joi.string().default('7d'),
   CLIENT_URL: Joi.string().default('http://localhost:3000'),
+  CLOUDINARY_CLOUD_NAME: Joi.string().required(),
+  CLOUDINARY_API_KEY: Joi.string().required(),
+  CLOUDINARY_API_SECRET: Joi.string().required(),
 });

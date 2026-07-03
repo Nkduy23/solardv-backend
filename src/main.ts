@@ -1,4 +1,4 @@
-import { NestFactory, Reflector } from '@nestjs/core';
+import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
@@ -7,14 +7,17 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const config = app.get(ConfigService);
+  const isProd = config.get('nodeEnv') === 'production';
 
-  // CORS
-  app.enableCors({ origin: config.get('client.url'), credentials: true });
+  // CORS — production chỉ cho phép domain thật, dev cho phép localhost
+  const clientUrl = config.get<string>('client.url');
+  app.enableCors({
+    origin: isProd ? clientUrl : true, // dev: cho phép mọi origin để dễ test
+    credentials: true,
+  });
 
-  // Global prefix
   app.setGlobalPrefix('api/v1');
 
-  // Validation pipe — whitelist strip unknown fields, transform types
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -24,8 +27,8 @@ async function bootstrap() {
     }),
   );
 
-  // Swagger (dev only)
-  if (config.get('nodeEnv') !== 'production') {
+  // Swagger — tắt hoàn toàn ở production để tránh lộ API spec
+  if (!isProd) {
     const doc = new DocumentBuilder()
       .setTitle('SolarDV API')
       .setDescription('REST API cho hệ thống SolarDV')
@@ -38,9 +41,7 @@ async function bootstrap() {
   const port = config.get<number>('port') ?? 4000;
   await app.listen(port);
   console.log(`Server running on http://localhost:${port}/api/v1`);
-  if (config.get('nodeEnv') !== 'production') {
-    console.log(`Swagger docs: http://localhost:${port}/docs`);
-  }
+  if (!isProd) console.log(`Swagger docs: http://localhost:${port}/docs`);
 }
 
 bootstrap();
