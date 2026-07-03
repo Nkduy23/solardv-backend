@@ -16,13 +16,16 @@ import { UpdateConsultationDto } from './dto/update-consultation.dto';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { Public } from '../../common/decorators/public.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('Consultations')
 @Controller('consultations')
 export class ConsultationsController {
   constructor(private svc: ConsultationsService) {}
 
+  // Giới hạn 5 lần đăng ký / 1 phút / 1 IP
   @Public()
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post()
   create(@Body() dto: CreateConsultationDto) {
     return this.svc.create(dto);

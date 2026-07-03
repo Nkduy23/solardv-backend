@@ -35,6 +35,12 @@ export class PostsController {
     return this.svc.findOne(slug);
   }
 
+  @Public()
+  @Get('id/:id')
+  findById(@Param('id') id: string) {
+    return this.svc.findById(id);
+  }
+
   @Post()
   @Roles(Role.ADMIN, Role.STAFF)
   @ApiBearerAuth()

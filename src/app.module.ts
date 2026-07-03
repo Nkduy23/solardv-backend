@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import configuration from './config/configuration';
@@ -35,7 +36,8 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
       load: [configuration],
       validationSchema,
     }),
-    // Serve file ảnh upload tĩnh tại /uploads/*
+    // Rate limiting global — 100 req / 60s mặc định, override per-route bằng @Throttle()
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',
@@ -59,11 +61,11 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
     { provide: APP_INTERCEPTOR, useClass: TransformInterceptor },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    // Gắn middleware đếm lượt truy cập cho tất cả route GET public (client website)
     consumer
       .apply(AnalyticsTrackerMiddleware)
       .forRoutes({ path: 'api/v1/*', method: RequestMethod.GET });

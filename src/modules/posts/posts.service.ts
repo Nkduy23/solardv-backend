@@ -23,11 +23,17 @@ export class PostsService {
       }),
       this.prisma.post.count({ where }),
     ]);
-    return { data, meta: { total, page, limit } };
+    return { data, meta: { total, page: Number(page), limit: Number(limit) } };
   }
 
   async findOne(slug: string) {
     const item = await this.prisma.post.findUnique({ where: { slug } });
+    if (!item) throw new NotFoundException('Không tìm thấy bài viết');
+    return item;
+  }
+
+  async findById(id: string) {
+    const item = await this.prisma.post.findUnique({ where: { id } });
     if (!item) throw new NotFoundException('Không tìm thấy bài viết');
     return item;
   }
@@ -48,11 +54,5 @@ export class PostsService {
   async remove(id: string) {
     await this.findById(id);
     return this.prisma.post.delete({ where: { id } });
-  }
-
-  private async findById(id: string) {
-    const item = await this.prisma.post.findUnique({ where: { id } });
-    if (!item) throw new NotFoundException('Không tìm thấy bài viết');
-    return item;
   }
 }
