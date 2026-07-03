@@ -5,22 +5,9 @@ import {
   Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as path from 'path';
-import * as fs from 'fs';
+import { v2 as cloudinary } from 'cloudinary';
 import { UploadMediaDto } from './dto/upload-media.dto';
-
-export interface MediaFile {
-  id: string;
-  originalName: string;
-  filename: string;
-  url: string;
-  size: number;
-  mimetype: string;
-  category?: string;
-  caption?: string;
-  refId?: string;
-  createdAt: Date;
-}
+import { PrismaService } from '../../database/prisma.service';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const MAX_SIZE = 10 * 1024 * 1024; // 10MB
@@ -28,22 +15,19 @@ const MAX_SIZE = 10 * 1024 * 1024; // 10MB
 @Injectable()
 export class MediaService {
   private readonly logger = new Logger(MediaService.name);
-  // In-memory store tạm — thay bằng DB khi cần persist
-  private readonly store: Map<string, MediaFile> = new Map();
-  private readonly uploadDir: string;
 
-  constructor(private config: ConfigService) {
-    this.uploadDir = path.join(process.cwd(), 'uploads');
-    if (!fs.existsSync(this.uploadDir)) {
-      fs.mkdirSync(this.uploadDir, { recursive: true });
-    }
+  constructor(
+    private config: ConfigService,
+    private prisma: PrismaService,
+  ) {
+    cloudinary.config({
+      cloud_name: this.config.get('cloudinary.cloudName'),
+      api_key: this.config.get('cloudinary.apiKey'),
+      api_secret: this.config.get('cloudinary.apiSecret'),
+    });
   }
 
-  async save(
-    file: Express.Multer.File,
-    dto: UploadMediaDto,
-    baseUrl: string,
-  ): Promise<MediaFile> {
+  async save(file: Express.Multer.File, dto: UploadMediaDto) {
     if (!ALLOWED_TYPES.includes(file.mimetype)) {
       throw new BadRequestException(
         'Chỉ chấp nhận file ảnh (JPEG, PNG, WEBP, GIF)',
@@ -53,48 +37,61 @@ export class MediaService {
       throw new BadRequestException('File không được vượt quá 10MB');
     }
 
-    const id = `media-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const ext = path.extname(file.originalname);
-    const filename = `${id}${ext}`;
-    const dest = path.join(this.uploadDir, filename);
+    const uploadResult = await new Promise<any>((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          folder: `solardv/${dto.category ?? 'other'}`,
+          resource_type: 'image',
+        },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result);
+        },
+      );
+      stream.end(file.buffer);
+    });
 
-    fs.writeFileSync(dest, file.buffer);
+    const record = await this.prisma.media.create({
+      data: {
+        publicId: uploadResult.public_id,
+        url: uploadResult.secure_url,
+        originalName: file.originalname,
+        size: file.size,
+        mimetype: file.mimetype,
+        category: dto.category,
+        caption: dto.caption,
+        refId: dto.refId,
+      },
+    });
 
-    const record: MediaFile = {
-      id,
-      originalName: file.originalname,
-      filename,
-      url: `${baseUrl}/uploads/${filename}`,
-      size: file.size,
-      mimetype: file.mimetype,
-      category: dto.category,
-      caption: dto.caption,
-      refId: dto.refId,
-      createdAt: new Date(),
-    };
-
-    this.store.set(id, record);
-    this.logger.log(`Uploaded: ${filename} (${file.size} bytes)`);
+    this.logger.log(`Uploaded to Cloudinary: ${uploadResult.public_id}`);
     return record;
   }
 
-  findAll(category?: string): MediaFile[] {
-    const all = Array.from(this.store.values());
-    return category ? all.filter((f) => f.category === category) : all;
+  async findAll(category?: string) {
+    return this.prisma.media.findMany({
+      where: category ? { category } : {},
+      orderBy: { createdAt: 'desc' },
+    });
   }
 
-  findOne(id: string): MediaFile {
-    const item = this.store.get(id);
+  async findOne(id: string) {
+    const item = await this.prisma.media.findUnique({ where: { id } });
     if (!item) throw new NotFoundException('Không tìm thấy file');
     return item;
   }
 
-  remove(id: string): { deleted: boolean } {
-    const item = this.findOne(id);
-    const filePath = path.join(this.uploadDir, item.filename);
-    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-    this.store.delete(id);
-    this.logger.log(`Deleted: ${item.filename}`);
+  async remove(id: string) {
+    const item = await this.findOne(id);
+    try {
+      await cloudinary.uploader.destroy(item.publicId);
+    } catch (err) {
+      this.logger.warn(
+        `Failed to delete from Cloudinary: ${item.publicId}`,
+        err,
+      );
+    }
+    await this.prisma.media.delete({ where: { id } });
     return { deleted: true };
   }
 }

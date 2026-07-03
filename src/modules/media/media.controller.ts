@@ -32,7 +32,7 @@ export class MediaController {
   @Post('upload')
   @Roles(Role.ADMIN, Role.STAFF)
   @ApiBearerAuth()
-  @UseInterceptors(FileInterceptor('file', { storage: undefined })) // dùng memoryStorage (default)
+  @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -50,8 +50,7 @@ export class MediaController {
     dto.category = req.body?.category;
     dto.caption = req.body?.caption;
     dto.refId = req.body?.refId;
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
-    return this.svc.save(file, dto, baseUrl);
+    return this.svc.save(file, dto);
   }
 
   @Get()
