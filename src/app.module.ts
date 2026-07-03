@@ -21,6 +21,7 @@ import { RolesGuard } from './common/guards/roles.guard';
 import { AnalyticsTrackerMiddleware } from './common/middleware/analytics-tracker.middleware';
 import { AppController } from './app.controller';
 import { AuthModule } from './modules/auth/auth.module';
+import { UsersModule } from './modules/users/users.module';
 import { ServicesModule } from './modules/services/services.module';
 import { ProductsModule } from './modules/products/products.module';
 import { ProjectsModule } from './modules/projects/projects.module';
@@ -36,7 +37,6 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
       load: [configuration],
       validationSchema,
     }),
-    // Rate limiting global — 100 req / 60s mặc định, override per-route bằng @Throttle()
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'uploads'),
@@ -46,6 +46,7 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
     PrismaModule,
     RedisModule,
     AuthModule,
+    UsersModule,
     ServicesModule,
     ProductsModule,
     ProjectsModule,
