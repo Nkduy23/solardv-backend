@@ -13,10 +13,7 @@ async function bootstrap() {
   app.use(cookieParser());
 
   const clientUrl = config.get<string>('client.url');
-  app.enableCors({
-    origin: isProd ? clientUrl : true,
-    credentials: true, // bắt buộc để cookie được gửi cross-subdomain
-  });
+  app.enableCors({ origin: isProd ? clientUrl : true, credentials: true });
 
   app.setGlobalPrefix('api/v1');
 

@@ -13,13 +13,21 @@ export class AnalyticsService {
     private redis: RedisService,
   ) {}
 
-  // ─── Cron: chạy mỗi giờ, đồng bộ Redis buffer → VisitStat DB ───────────
+  // Ghi nhận 1 lượt xem trang thật từ khách hàng (gọi bởi FE client, không phải admin)
+  async track() {
+    const today = new Date().toISOString().split('T')[0];
+    const key = `visits:pageviews:${today}`;
+    await this.redis.incr(key);
+    await this.redis.expire(key, 60 * 60 * 48);
+    return { success: true };
+  }
+
   @Cron(CronExpression.EVERY_HOUR)
   async syncToDb() {
     try {
       const keys = await this.redis.keys('visits:pageviews:*');
       for (const key of keys) {
-        const date = key.replace('visits:pageviews:', ''); // "2026-06-30"
+        const date = key.replace('visits:pageviews:', '');
         const val = await this.redis.get(key);
         if (!val) continue;
         const pageViews = parseInt(val, 10);
@@ -36,15 +44,11 @@ export class AnalyticsService {
     }
   }
 
-  // ─── Overview cho StatCard trên Dashboard ────────────────────────────────
   async overview() {
     const today = new Date().toISOString().split('T')[0];
-
-    // Lượt truy cập hôm nay — đọc realtime từ Redis
     const todayRedis = await this.redis.get(`visits:pageviews:${today}`);
     const totalVisitsToday = parseInt(todayRedis ?? '0', 10);
 
-    // Tháng này — tổng từ DB (đã sync) + phần hôm nay chưa sync
     const startOfMonth = new Date(
       new Date().getFullYear(),
       new Date().getMonth(),
@@ -57,12 +61,10 @@ export class AnalyticsService {
     const totalVisitsThisMonth =
       (dbMonthResult._sum.pageViews ?? 0) + totalVisitsToday;
 
-    // Đăng ký tư vấn tháng này
     const totalConsultationsThisMonth = await this.prisma.consultation.count({
       where: { createdAt: { gte: startOfMonth } },
     });
 
-    // Tỉ lệ chuyển đổi
     const conversionRate =
       totalVisitsThisMonth > 0
         ? +((totalConsultationsThisMonth / totalVisitsThisMonth) * 100).toFixed(
@@ -78,7 +80,6 @@ export class AnalyticsService {
     };
   }
 
-  // ─── Data cho VisitsChart (lịch sử theo ngày/tuần/tháng) ────────────────
   async visits(query: VisitsQueryDto) {
     const from = query.from ? new Date(query.from) : this.daysAgo(30);
     const to = query.to ? new Date(query.to) : new Date();
@@ -88,7 +89,6 @@ export class AnalyticsService {
       orderBy: { date: 'asc' },
     });
 
-    // Lấy thêm giá trị Redis hôm nay nếu nằm trong range
     const today = new Date().toISOString().split('T')[0];
     if (to >= new Date(today)) {
       const todayVal = await this.redis.get(`visits:pageviews:${today}`);
@@ -112,7 +112,6 @@ export class AnalyticsService {
 
     if (query.groupBy === GroupBy.DAY || !query.groupBy) return rows;
 
-    // Group by week hoặc month
     const grouped: Record<string, number> = {};
     for (const row of rows) {
       const key =

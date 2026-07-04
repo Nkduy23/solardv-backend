@@ -21,6 +21,7 @@ export class AnalyticsTrackerMiddleware implements NestMiddleware {
   constructor(private redis: RedisService) {}
 
   async use(req: Request, _res: Response, next: NextFunction) {
+    console.log('[AnalyticsTracker] hit:', req.method, req.path);
     const skip = SKIP_PREFIXES.some((p) => req.path.startsWith(p));
     if (!skip && req.method === 'GET') {
       const today = new Date().toISOString().split('T')[0]; // "2026-06-30"
@@ -35,3 +36,5 @@ export class AnalyticsTrackerMiddleware implements NestMiddleware {
     next();
   }
 }
+
+// bỏ
