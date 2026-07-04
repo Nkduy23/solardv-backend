@@ -2,13 +2,19 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
+import { Request } from 'express';
 import { PrismaService } from '../../../database/prisma.service';
 
 export interface JwtPayload {
-  sub: string; // user id
+  sub: string;
   email: string;
   role: string;
 }
+
+// Ưu tiên đọc từ cookie httpOnly; fallback Bearer header để vẫn test được qua Swagger
+const cookieExtractor = (req: Request): string | null => {
+  return (req as any)?.cookies?.['solardv_access_token'] ?? null;
+};
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
@@ -17,7 +23,10 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     private prisma: PrismaService,
   ) {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        cookieExtractor,
+        ExtractJwt.fromAuthHeaderAsBearerToken(),
+      ]),
       ignoreExpiration: false,
       secretOrKey: config.get<string>('jwt.accessSecret'),
     });
@@ -28,6 +37,6 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       where: { id: payload.sub },
     });
     if (!user) throw new UnauthorizedException();
-    return user; // gắn vào req.user
+    return user;
   }
 }

@@ -9,7 +9,7 @@ export const validationSchema = Joi.object({
   REDIS_HOST: Joi.string().default('localhost'),
   REDIS_PORT: Joi.number().default(6379),
   REDIS_PASSWORD: Joi.string().optional(),
-  REDIS_TLS: Joi.string().valid('true', 'false').default('true'),
+  REDIS_TLS: Joi.string().valid('true', 'false').default('false'),
   JWT_ACCESS_SECRET: Joi.string().required(),
   JWT_ACCESS_EXPIRES_IN: Joi.string().default('15m'),
   JWT_REFRESH_SECRET: Joi.string().required(),
@@ -18,4 +18,5 @@ export const validationSchema = Joi.object({
   CLOUDINARY_CLOUD_NAME: Joi.string().required(),
   CLOUDINARY_API_KEY: Joi.string().required(),
   CLOUDINARY_API_SECRET: Joi.string().required(),
+  COOKIE_DOMAIN: Joi.string().optional(),
 });

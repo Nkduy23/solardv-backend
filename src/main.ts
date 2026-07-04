@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
+import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -9,11 +10,12 @@ async function bootstrap() {
   const config = app.get(ConfigService);
   const isProd = config.get('nodeEnv') === 'production';
 
-  // CORS — production chỉ cho phép domain thật, dev cho phép localhost
+  app.use(cookieParser());
+
   const clientUrl = config.get<string>('client.url');
   app.enableCors({
-    origin: isProd ? clientUrl : true, // dev: cho phép mọi origin để dễ test
-    credentials: true,
+    origin: isProd ? clientUrl : true,
+    credentials: true, // bắt buộc để cookie được gửi cross-subdomain
   });
 
   app.setGlobalPrefix('api/v1');
@@ -27,7 +29,6 @@ async function bootstrap() {
     }),
   );
 
-  // Swagger — tắt hoàn toàn ở production để tránh lộ API spec
   if (!isProd) {
     const doc = new DocumentBuilder()
       .setTitle('SolarDV API')
@@ -41,7 +42,6 @@ async function bootstrap() {
   const port = config.get<number>('port') ?? 4000;
   await app.listen(port);
   console.log(`Server running on http://localhost:${port}/api/v1`);
-  if (!isProd) console.log(`Swagger docs: http://localhost:${port}/docs`);
 }
 
 bootstrap();
