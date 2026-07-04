@@ -16,13 +16,13 @@ export class ProjectsService {
     const [data, total] = await Promise.all([
       this.prisma.project.findMany({
         where,
-        skip: (page - 1) * limit,
-        take: limit,
+        skip: (Number(page) - 1) * Number(limit),
+        take: Number(limit),
         orderBy: { completedAt: 'desc' },
       }),
       this.prisma.project.count({ where }),
     ]);
-    return { data, meta: { total, page, limit } };
+    return { data, meta: { total, page: Number(page), limit: Number(limit) } };
   }
 
   async findOne(slug: string) {
@@ -32,12 +32,15 @@ export class ProjectsService {
   }
 
   async create(dto: CreateProjectDto) {
-    return this.prisma.project.create({ data: dto });
+    return this.prisma.project.create({ data: this.normalize(dto) });
   }
 
   async update(id: string, dto: UpdateProjectDto) {
     await this.findById(id);
-    return this.prisma.project.update({ where: { id }, data: dto });
+    return this.prisma.project.update({
+      where: { id },
+      data: this.normalize(dto),
+    });
   }
 
   async remove(id: string) {
@@ -49,5 +52,13 @@ export class ProjectsService {
     const item = await this.prisma.project.findUnique({ where: { id } });
     if (!item) throw new NotFoundException('Không tìm thấy dự án');
     return item;
+  }
+
+  // Chuyển completedAt từ string (dù chỉ có ngày hay đầy đủ ISO) sang Date hợp lệ cho Prisma
+  private normalize<T extends { completedAt?: string }>(dto: T) {
+    return {
+      ...dto,
+      completedAt: dto.completedAt ? new Date(dto.completedAt) : undefined,
+    };
   }
 }
