@@ -1,0 +1,16 @@
+name: Keep Render Backend Alive
+
+on:
+  schedule:
+    # Chạy mỗi 10 phút, từ 0:00 đến 14:59 UTC = 7:00–21:59 giờ Việt Nam
+    - cron: '*/10 0-14 * * *'
+  workflow_dispatch: # cho phép bấm chạy tay để test thử ngay
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping health endpoint
+        run: |
+          curl -sf --max-time 15 https://api.ducvinhgreen.io.vn/api/v1/health \
+            || echo "Ping thất bại — có thể server đang cold start, bỏ qua lần này"
