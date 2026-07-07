@@ -1,13 +1,25 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import * as ExcelJS from 'exceljs';
 import { PrismaService } from '../../database/prisma.service';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { CreateConsultationDto } from './dto/create-consultation.dto';
 import { UpdateConsultationDto } from './dto/update-consultation.dto';
 import { ConsultationStatus } from '@prisma/client';
+import { EmailService } from '../email/email.service';
+
+const STATUS_LABEL: Record<ConsultationStatus, string> = {
+  NEW: 'Mới',
+  CONTACTED: 'Đã liên hệ',
+  DONE: 'Hoàn tất',
+  CANCELLED: 'Đã huỷ',
+};
 
 @Injectable()
 export class ConsultationsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private email: EmailService,
+  ) {}
 
   async findAll(query: PaginationQueryDto & { status?: ConsultationStatus }) {
     const { page = 1, limit = 20, search, status } = query;
@@ -27,7 +39,7 @@ export class ConsultationsService {
       }),
       this.prisma.consultation.count({ where }),
     ]);
-    return { data, meta: { total, page, limit } };
+    return { data, meta: { total, page: Number(page), limit: Number(limit) } };
   }
 
   async findOne(id: string) {
@@ -37,7 +49,12 @@ export class ConsultationsService {
   }
 
   async create(dto: CreateConsultationDto) {
-    return this.prisma.consultation.create({ data: dto });
+    const created = await this.prisma.consultation.create({ data: dto });
+
+    // Gửi email thông báo — không await chặn response, chạy nền, lỗi tự nuốt bên trong EmailService
+    this.email.sendNewConsultationNotification(dto);
+
+    return created;
   }
 
   async updateStatus(id: string, dto: UpdateConsultationDto) {
@@ -61,5 +78,49 @@ export class ConsultationsService {
       this.prisma.consultation.count({ where: { status: 'DONE' } }),
     ]);
     return { total, new: newCount, contacted, done };
+  }
+
+  // Xuất toàn bộ danh sách đăng ký tư vấn ra file Excel (.xlsx)
+  async exportToExcel(): Promise<ExcelJS.Buffer> {
+    const consultations = await this.prisma.consultation.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'SolarDV';
+    workbook.created = new Date();
+
+    const sheet = workbook.addWorksheet('Đăng ký tư vấn');
+    sheet.columns = [
+      { header: 'Họ và tên', key: 'fullName', width: 25 },
+      { header: 'Điện thoại', key: 'phone', width: 16 },
+      { header: 'Email', key: 'email', width: 25 },
+      { header: 'Địa chỉ', key: 'address', width: 30 },
+      { header: 'Nội dung', key: 'message', width: 40 },
+      { header: 'Trạng thái', key: 'status', width: 14 },
+      { header: 'Ngày đăng ký', key: 'createdAt', width: 18 },
+    ];
+
+    // Header bold + nền màu nhẹ cho dễ nhìn
+    sheet.getRow(1).font = { bold: true };
+    sheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFF5A623' },
+    };
+
+    consultations.forEach((c) => {
+      sheet.addRow({
+        fullName: c.fullName,
+        phone: c.phone,
+        email: c.email ?? '',
+        address: c.address ?? '',
+        message: c.message ?? '',
+        status: STATUS_LABEL[c.status],
+        createdAt: c.createdAt.toLocaleDateString('vi-VN'),
+      });
+    });
+
+    return workbook.xlsx.writeBuffer();
   }
 }

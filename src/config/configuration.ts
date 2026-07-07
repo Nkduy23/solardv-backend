@@ -20,6 +20,13 @@ export default () => ({
     apiKey: process.env.CLOUDINARY_API_KEY,
     apiSecret: process.env.CLOUDINARY_API_SECRET,
   },
-  // Domain gốc để cookie share được giữa www. và api. — để trống ở local dev
   cookieDomain: process.env.COOKIE_DOMAIN || undefined,
+  smtp: {
+    host: process.env.SMTP_HOST,
+    port: parseInt(process.env.SMTP_PORT ?? '587', 10),
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+    from: process.env.SMTP_FROM,
+    adminNotificationEmail: process.env.ADMIN_NOTIFICATION_EMAIL,
+  },
 });

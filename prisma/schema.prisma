@@ -117,3 +117,22 @@ model Media {
   refId        String?  // liên kết tới Product/Project id nếu có
   createdAt    DateTime @default(now())
 }
+
+// Bảng cấu hình chung của site (thông tin liên hệ hiển thị Footer/Contact)
+// Luôn chỉ có DUY NHẤT 1 dòng — dùng id cố định "singleton" để dễ upsert
+model SiteSettings {
+  id        String   @id @default("singleton")
+  phone     String
+  email     String
+  address   String
+  updatedAt DateTime @updatedAt
+}
+
+// Lịch sử các lần backup dữ liệu tự động
+model BackupLog {
+  id        String   @id @default(uuid())
+  url       String
+  fileName  String
+  sizeBytes Int
+  createdAt DateTime @default(now())
+}

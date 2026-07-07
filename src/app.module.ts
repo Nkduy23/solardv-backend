@@ -23,6 +23,9 @@ import { PostsModule } from './modules/posts/posts.module';
 import { ConsultationsModule } from './modules/consultations/consultations.module';
 import { MediaModule } from './modules/media/media.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { SettingsModule } from './modules/settings/settings.module';
+import { EmailModule } from './modules/email/email.module';
+import { BackupModule } from './modules/backup/backup.module';
 
 @Module({
   imports: [
@@ -48,6 +51,9 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
     ConsultationsModule,
     MediaModule,
     AnalyticsModule,
+    SettingsModule,
+    EmailModule,
+    BackupModule,
   ],
   controllers: [AppController],
   providers: [

@@ -7,9 +7,11 @@ import {
   Patch,
   Post,
   Query,
+  Res,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { ConsultationStatus, Role } from '@prisma/client';
+import type { Response } from 'express';
 import { ConsultationsService } from './consultations.service';
 import { CreateConsultationDto } from './dto/create-consultation.dto';
 import { UpdateConsultationDto } from './dto/update-consultation.dto';
@@ -23,7 +25,6 @@ import { Throttle } from '@nestjs/throttler';
 export class ConsultationsController {
   constructor(private svc: ConsultationsService) {}
 
-  // Giới hạn 5 lần đăng ký / 1 phút / 1 IP
   @Public()
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post()
@@ -44,6 +45,21 @@ export class ConsultationsController {
   @ApiBearerAuth()
   summary() {
     return this.svc.summary();
+  }
+
+  // Đặt TRƯỚC route ':id' để tránh bị match nhầm thành id="export"
+  @Get('export')
+  @Roles(Role.ADMIN, Role.STAFF)
+  @ApiBearerAuth()
+  async export(@Res() res: Response) {
+    const buffer = await this.svc.exportToExcel();
+    const fileName = `dang-ky-tu-van-${new Date().toISOString().split('T')[0]}.xlsx`;
+    res.set({
+      'Content-Type':
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename="${fileName}"`,
+    });
+    res.send(buffer);
   }
 
   @Get(':id')
